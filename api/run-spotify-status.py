@@ -4,7 +4,7 @@ from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 
-import requests, json, os, random
+import requests, json, os, random, base64
 
 SPOTIFY_URL_REFRESH_TOKEN = "https://accounts.spotify.com/api/token"
 SPOTIFY_URL_NOW_PLAYING = "https://api.spotify.com/v1/me/player/currently-playing"
@@ -32,7 +32,20 @@ def refreshToken():
     headers = {"Authorization": "Basic {}".format(getAuth())}
 
     response = requests.post(SPOTIFY_URL_REFRESH_TOKEN, data=data, headers=headers)
-    return response.json()["access_token"]
+
+    try:
+        result = response.json()
+    except ValueError:
+        raise RuntimeError(f"Spotify token request failed with HTTP {response.status_code}")
+
+    if response.status_code != 200 or "access_token" not in result:
+        error = result.get("error", "unknown_error")
+        description = result.get("error_description", "No description")
+        raise RuntimeError(
+            f"Spotify token refresh failed (HTTP {response.status_code}): {error} - {description}"
+        )
+
+    return result["access_token"]
 
 
 def recentlyPlayed():
